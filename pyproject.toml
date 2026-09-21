@@ -1,0 +1,10 @@
+[project]
+name = "agentic_ai"
+version = "0.1.0"
+description = "This venv use for agentic ai course study"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "langchain>=1.4.2",
+    "langgraph>=1.2.11",
+]
