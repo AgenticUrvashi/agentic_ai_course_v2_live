@@ -15,9 +15,16 @@ SAMPLES_DIR = Path(__file__).parent / "samples"
 class Resume(BaseModel):
     name:str=Field(description="Full name of the candidate")
     email:str | None = Field(description="Get email if present, else none")
-    years_experience:float = Field(description="Total years of professional experience")
+    years_experience:float | None = Field(description="Total years of professional experience in positive float else None")
     skills:list[str] = Field(description="List of technical skills mentioned")
+    current_role: str | None = Field(description="current position/role of candidate if present else None")
     
+class Invoice(BaseModel):
+    invoice_number: int = Field(description="Invoice number must be integer value only")
+    total_amount: float = Field(description="Invoice amount must be float")
+    due_date:str = Field(description="Due date of invoice")
+    line_items:list[str] = Field(description="Extract each line item as a separate string")
+
 def read_sample(filename:str)->str:
     """Read a fixed, shipped sample file safely (no user-contolled paths)."""
     path = (SAMPLES_DIR / filename).resolve()
@@ -26,7 +33,7 @@ def read_sample(filename:str)->str:
     return path.read_text(encoding="utf-8")
 
 def extract_resume(text:str)-> Resume | None:
-    llm = init_chat_model(MODEL,  temperature=0)
+    llm = init_chat_model(MODEL,  temperature=1.0)
     structured_llm = llm.with_structured_output(Resume, include_raw=True)
     system = "You are a precise data extractor. Extract only what is present; never invent data."
     result = structured_llm.invoke([
@@ -35,10 +42,15 @@ def extract_resume(text:str)-> Resume | None:
     ])
     raw = result.get("raw")
     usage = getattr(raw, "usage_metadata", None)
+
+    price_per_token = 0.002
+
     if usage:
         print(f"[dim]tokens - in: {usage.get('input_tokens')}"
-                f"out: {usage.get('output_tokens')} total: {usage.get('total_tokens')}[/dim]")
-    
+            f"out: {usage.get('output_tokens')} total: {usage.get('total_tokens')}[/dim]")
+        total_tokens = usage.get("total_tokens")
+        print(total_tokens*price_per_token)
+
     if result.get("parsing_error"):
         print("[red]Model output failed Validation!; handle/retry instead of trusting it.[/red]")
         return None
