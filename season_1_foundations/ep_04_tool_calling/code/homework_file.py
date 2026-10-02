@@ -5,6 +5,7 @@ from rich import print
 from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage, ToolMessage
 from langchain.chat_models import init_chat_model
+from pydantic import BaseModel
 
 load_dotenv()
 MODEL = os.getenv("GROQ_MODEL", "groq:qwen/qwen3.8-27b")
@@ -28,17 +29,33 @@ def lookup_user(user_id:str) -> str:
     users = {"u1":"Aarav (Pro plan)","u2":"Diya (Free plan)"}
     return users.get(user_id, f"No user with id '{user_id}'.")
 
-@tool
-def get_resume(name:str) -> str:
-    """Read and the return stored resume for candidate name (ramesh,khushi,etc)."""
+class CandidateInput(BaseModel):
+    name:str
+    role:str
+
+@tool(args_schema=CandidateInput) 
+def get_resume(name:str,role:str) -> str:
+    """Get candidate information."""
+
     first_name = name.lower().strip().split()[0]
     file_path = RESUME_DIR / f"{first_name}.txt"
 
     if file_path.exists():
         return file_path.read_text(encoding="utf-8")
+
     return f"No resume found for {name}"
 
-TOOLS = {t.name: t for t in [add, get_weather, lookup_user, get_resume]}
+@tool
+def currency_converter(amount:float,from_ccy:str, to_ccy:str)->float:
+    """Convert amount from USD to INR"""
+    return f"USD {amount} = INR {amount*90}"
+
+@tool
+def test_error():
+    """Raise ValueError to test error handling"""
+    raise ValueError("Something went wrong.")
+
+TOOLS = {t.name: t for t in [add, get_weather, lookup_user, get_resume,currency_converter,test_error]}
 
 def run_tool_safely(name:str,args:dict)->str:
     tool_fn = TOOLS.get(name,None)
@@ -55,7 +72,7 @@ def main()->None:
     llm = init_chat_model(MODEL,temperature=0)
     llm_with_tools = llm.bind_tools(list(TOOLS.values()))
 
-    question = "can we select priya for Python developer interview, just tell me yes or no and what is the weather in mumbai?"
+    question = "Find Priya's resume for AI Engineer role."
     messages=[HumanMessage(content=question)]
     print(f"[bold cyan] USER: [/bold cyan] {question}\n")
 
@@ -77,3 +94,4 @@ def main()->None:
 
 if __name__ == "__main__":
     main()
+
